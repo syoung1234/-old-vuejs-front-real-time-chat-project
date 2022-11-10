@@ -20,6 +20,11 @@ import App from "./App.vue";
 import router from "./router";
 import Argon from "./plugins/argon-kit";
 import './registerServiceWorker'
+import axios from "axios"
+
+// 다른 컴포넌트에서는 import 없이 this.$axios로 사용가능
+Vue.prototype.$axios = axios
+
 
 Vue.config.productionTip = false;
 Vue.use(Argon);
