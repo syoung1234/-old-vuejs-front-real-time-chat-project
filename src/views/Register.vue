@@ -18,12 +18,12 @@
                           class="border-0">
                         <template>
                             
-                            <div class="btn-wrapper text-center">
+                            <!-- <div class="btn-wrapper text-center">
                                 <base-button type="neutral">
                                     <img slot="icon" src="img/icons/common/google.svg">
                                     Google
                                 </base-button>
-                            </div>
+                            </div> -->
                         </template>
                         <template>
                             <div class="text-center text-muted mb-4">
@@ -33,17 +33,23 @@
                                 <base-input alternative
                                             placeholder="이메일"
                                             v-model="email"
-                                            @blur="emailValidCheck()"
+                                            @blur="emailValidCheck(), checkDuplicate('email')"
                                             addon-left-icon="ni">
                                 </base-input>
                                 <div class="text-muted font-italic" v-if="!emailValidCheckFlag"> 
                                     <small class="color-red">이메일 형식으로 입력해주세요.</small>
                                 </div>
+                                <div class="text-muted font-italic" v-else-if="emailDuplicateFlag === false"> 
+                                    <small class="color-red">이미 사용 중인 이메일입니다.</small>
+                                </div>
+                                <div class="text-muted font-italic" v-else-if="emailDuplicateFlag === true"> 
+                                    <small class="color-green">사용 가능한 이메일입니다.</small>
+                                </div>
                                 <base-input alternative
                                             type="password"
                                             placeholder="비밀번호"
                                             v-model="password"
-                                            @blur="passwordValid"
+                                            @blur="passwordValid(), passwordCheckValid()"
                                             addon-left-icon="ni">
                                 </base-input>
                                 <div class="text-muted font-italic" v-if="!passwordValidFlag"> 
@@ -63,11 +69,17 @@
                                             class="mb-3"
                                             placeholder="닉네임"
                                             v-model="nickname"
-                                            @blur="nicknameNullCheck()"
+                                            @blur="nicknameNullCheck(), checkDuplicate('nickname')"
                                             addon-left-icon="ni">
                                 </base-input>
                                 <div class="text-muted font-italic" v-if="!nicknameNullCheckFlag"> 
                                     <small class="color-red">닉네임 입력해주세요.</small>
+                                </div>
+                                <div class="text-muted font-italic" v-else-if="nicknameDuplicateFlag === false"> 
+                                    <small class="color-red">이미 사용 중인 닉네임입니다.</small>
+                                </div>
+                                <div class="text-muted font-italic" v-else-if="nicknameDuplicateFlag === true"> 
+                                    <small class="color-green">사용 가능한 닉네임입니다.</small>
                                 </div>
                                 <base-input alternative
                                             class="mb-3"
@@ -75,7 +87,7 @@
                                             v-model="phone"
                                             addon-left-icon="ni ni-phone-3">
                                 </base-input>
-                                <base-checkbox>
+                                <base-checkbox v-model="policyCheck">
                                     <span>
                                     <a href="">Privacy Policy</a>
                                         서비스 약관에 동의합니다.
@@ -110,27 +122,58 @@ export default {
             passwordCheckFlag: true,
             nicknameNullCheckFlag: true,
             emailValidCheckFlag: true,
+            emailDuplicateFlag: '',
+            nicknameDuplicateFlag: '',
+            policyCheck: false,
         }
     },
     methods: {
+        // 중복체크 (이메일, 닉네임)
+        checkDuplicate(key) {
+            let data = {};
+            let type = null;
+            data.email = this.email;
+            data.nickname = this.nickname;
+            let result = null;
+
+            if (key == "email") {
+                type = this.email;
+            } else if (key == "nickname") {
+                type = this.nickname;
+            }
+            if (type != null) {
+                this.$axios
+                .post(`/api/duplicate/${key}`, data, axiosConfig)
+                .then((res) => {
+                    if (res.data == "exist") {
+                        result = false;
+                    } else {
+                        result = true;
+                    }
+
+                    if (key == "email") {
+                        this.emailDuplicateFlag = result;
+                    } else if (key == "nickname") {
+                        this.nicknameDuplicateFlag = result;
+                    }
+                      
+                })
+                .catch((error) => {
+                  console.log(error);
+                })
+            }
+            
+        },
+        // 이메일 유효성
         emailValidCheck() {
-            //이메일 유효성을 검사한다.
 	        if (/.+@.+\..+/.test(this.email)) {
 	        	//유효성이 틀리다면 data 값을 false로 한다.
                 this.emailValidCheckFlag = true;
-	        	return;
 	        } else {
 	        	this.emailValidCheckFlag = false;
 	        }
-    
-            //이메일 중복체크를 한다.
-	        // const response = await checkDuplicateEmail(this.email);
-	        // if (!response.data) {
-	        // 	this.availableEmail = false;
-	        // } else {
-	        // 	this.availableEmail = true;
-	        // }
         },
+        // 닉네임 null 체크
         nicknameNullCheck() {
             if (this.nickname == null) {
                 this.nicknameNullCheckFlag = false;
@@ -138,6 +181,7 @@ export default {
                 this.nicknameNullCheckFlag =true
             }
         },
+        // 비밀번호 유효성
         passwordValid () {
           if (/^(?=.*[a-z])(?=.*[0-9]).{8,16}$/.test(this.password)) {
             this.passwordValidFlag = true
@@ -145,6 +189,7 @@ export default {
             this.passwordValidFlag = false
           }
         },
+        // 비밀번호 확인
         passwordCheckValid() {
             if(this.password === this.password_confirmation) {
                 this.passwordCheckFlag = true
@@ -152,9 +197,10 @@ export default {
                 this.passwordCheckFlag = false
             }
         },
+        // 회원가입 전송
         postData() {
             if (this.email != null && this.password != null && this.password_confirmation != null && this.nickname != null &&
-            this.passwordValidFlag == true && this.passwordCheckFlag == true) {
+            this.passwordValidFlag == true && this.passwordCheckFlag == true && this.policyCheck == true) {
                 let saveData = {};
                 saveData.email = this.email;
                 saveData.password = this.password;
